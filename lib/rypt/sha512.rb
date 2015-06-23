@@ -65,7 +65,7 @@ module Rypt
     end
 
     def run(salt_val, pass_val)
-      salt_trunc = salt_val
+      salt_trunc = salt_val[0..15]
       pass_trunc = pass_val
       sb, pb, i0 = init_hash(salt_trunc.force_encoding(Encoding::UTF_8), pass_trunc.force_encoding(Encoding::UTF_8))
 
