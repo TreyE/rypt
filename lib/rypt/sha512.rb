@@ -73,7 +73,7 @@ module Rypt
         val = round(i, sb, pb, acc)
       end
 
-      finalize_hash(hash_val)
+      "$6$" + salt_trunc  + "$" + finalize_block(hash_val)
     end
   end
 end
