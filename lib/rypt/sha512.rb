@@ -70,14 +70,60 @@ module Rypt
     #   http://www.akkadia.org/drepper/SHA-crypt.txt
     # Follow item #22 on, and be amazed at the pain.
     def finalize_block(hash_val)
+      # Remember, groups AND bytes are LSB ordered
+=begin
+      index_hash = [
+        0, 21, 42,
+        22, 43, 1,
+        44, 2, 23,
+        3, 24, 45,
+        25, 46, 4,
+        47, 5, 26,
+        6, 27, 48,
+        28, 49, 7,
+        50, 8, 29,
+        9, 30, 51,
+        31, 52, 10,
+        53, 11, 32,
+        12, 33, 54,
+        34, 55, 13,
+        56, 14, 35,
+        15, 36, 57,
+        37, 58, 16,
+        59, 17, 38,
+        18, 39, 60,
+        40, 61, 19,
+        62, 20, 41,
+        63
+      ]
+=end
       index_hash = [63, 62, 20, 41, 40, 61, 19, 18, 39, 60, 59, 17, 38, 37, 58, 16, 15, 36, 57, 56, 14, 35, 34, 55, 13, 12, 33, 54, 53, 11, 32, 31, 52, 10, 9, 30, 51, 50, 8, 29, 28, 49, 7, 6, 27, 48, 47, 5, 26, 25, 46, 4, 3, 24, 45, 44, 2, 23, 22, 43, 1, 0, 21, 42].reverse
 
-      b64="./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+      reordered_hash = (0..63).to_a.map { |i| [hash_val.getbyte(index_hash[i])].pack("*C") }
+      bytes_array = []
+      reordered_hash.each_slice(3) { |b_slice|
+        bytes_array << b_slice
+      }
+      three_byte_sets = bytes_array.first(21)
+      last_byte = bytes_array.last
+      (three_byte_sets.map { |tbs| encode_triple_bytes(tbs) }.join + encode_last_byte(last_byte))
+    end
 
-      reordered_hash = (0..63).to_a.map { |i| hash_val[index_hash[i]] }
-      char_array = []
-      reordered_hash.join.each_char { |e| char_array << e.unpack("b*") }
-      ((char_array.join + "0000").reverse.scan(/.{1,6}/).map { |e| ((e).to_i 2) }.reverse.map { |i| b64[i] }).join
+    # BITS COME IN LSB!  Swap them!
+    def six_bits_to_b64(bits)
+      b64="./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+      b64[bits.reverse.to_i(2)]
+    end
+
+    def encode_last_byte(byte)
+      two_bit_groups = byte.first.unpack("b*").join.scan(/.{1,6}/)
+      full_6_bits = two_bit_groups.first
+      last_char = two_bit_groups.last + "0000"
+      [six_bits_to_b64(full_6_bits), six_bits_to_b64(last_char)].join
+    end
+
+    def encode_triple_bytes(bytes)
+      bytes.map { |e| e.unpack("b*") }.join.scan(/.{1,6}/).map {|v| six_bits_to_b64(v) }.join
     end
 
     def run(salt_val, pass_val)
